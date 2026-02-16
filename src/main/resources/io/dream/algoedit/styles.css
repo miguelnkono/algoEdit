@@ -1,0 +1,273 @@
+/* algoEdit Stylesheet with Syntax Highlighting */
+
+/* Root styling */
+.root {
+    -fx-font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -fx-font-size: 13px;
+}
+
+/* Menu bar */
+.menu-bar {
+    -fx-background-color: #f8f8f8;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 0 0 1 0;
+}
+
+.menu-item {
+    -fx-padding: 5 10 5 10;
+}
+
+.menu-item:focused {
+    -fx-background-color: #e8e8e8;
+}
+
+/* Tab Pane */
+.tab-pane {
+    -fx-background-color: #ffffff;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: #f0f0f0;
+}
+
+.tab {
+    -fx-background-color: #e0e0e0;
+    -fx-background-radius: 5 5 0 0;
+    -fx-padding: 5 15 5 15;
+    -fx-border-color: #c0c0c0;
+    -fx-border-width: 1 1 0 1;
+}
+
+.tab:selected {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #4a90e2;
+    -fx-border-width: 2 2 0 2;
+}
+
+.tab .tab-label {
+    -fx-font-size: 12px;
+}
+
+.tab:selected .tab-label {
+    -fx-font-weight: bold;
+}
+
+/* CodeArea (RichTextFX) */
+.code-area {
+    -fx-background-color: #ffffff;
+    -fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    -fx-font-size: 14px;
+}
+
+.code-area .text {
+    -fx-fill: #2c3e50;
+}
+
+.code-area .paragraph-box {
+    -fx-background-color: #ffffff;
+}
+
+.code-area .caret {
+    -fx-stroke: #2c3e50;
+    -fx-stroke-width: 2px;
+}
+
+/* Syntax Highlighting for AlgoLang */
+
+/* Keywords: Algorithme, Variables, Debut, Fin, Ecrire, Lire, Si, alors, Sinon, TantQue, faire */
+.keyword {
+    -fx-fill: #0000ff;
+    -fx-font-weight: bold;
+}
+
+/* Types: entier, reel, chaine_charactere, caractere, booleen */
+.type {
+    -fx-fill: #2b91af;
+    -fx-font-weight: bold;
+}
+
+/* Boolean literals: vrai, faux, nil */
+.boolean {
+    -fx-fill: #0000ff;
+}
+
+/* Operators: <-, ==, !=, <=, >=, <, >, =, +, -, *, /, ! */
+.operator {
+    -fx-fill: #666666;
+    -fx-font-weight: bold;
+}
+
+/* Numbers */
+.number {
+    -fx-fill: #098658;
+}
+
+/* Strings */
+.string {
+    -fx-fill: #a31515;
+}
+
+/* Comments */
+.comment {
+    -fx-fill: #008000;
+    -fx-font-style: italic;
+}
+
+/* Parentheses */
+.paren {
+    -fx-fill: #000000;
+    -fx-font-weight: bold;
+}
+
+/* Braces */
+.brace {
+    -fx-fill: #000000;
+    -fx-font-weight: bold;
+}
+
+/* Brackets */
+.bracket {
+    -fx-fill: #000000;
+    -fx-font-weight: bold;
+}
+
+/* Semicolons */
+.semicolon {
+    -fx-fill: #000000;
+}
+
+/* Colons */
+.colon {
+    -fx-fill: #000000;
+}
+
+/* Commas */
+.comma {
+    -fx-fill: #000000;
+}
+
+/* Identifiers (variables, function names) */
+.identifier {
+    -fx-fill: #001080;
+}
+
+/* Line number gutter */
+.lineno {
+    -fx-background-color: #f0f0f0;
+    -fx-text-fill: #999999;
+    -fx-font-size: 12px;
+    -fx-padding: 0 5 0 5;
+}
+
+/* Selection */
+.code-area .selection {
+    -fx-fill: #add6ff;
+}
+
+/* Scroll bars */
+.scroll-bar {
+    -fx-background-color: #f8f8f8;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #c0c0c0;
+    -fx-background-radius: 5;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #a0a0a0;
+}
+
+.scroll-bar .thumb:pressed {
+    -fx-background-color: #808080;
+}
+
+/* Status Bar */
+.status-bar {
+    -fx-background-color: #f0f0f0;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 5 10 5 10;
+}
+
+.status-bar .label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #666666;
+}
+
+/* Dialogs */
+.dialog-pane {
+    -fx-background-color: #ffffff;
+}
+
+.dialog-pane .button {
+    -fx-background-color: #4a90e2;
+    -fx-text-fill: white;
+    -fx-padding: 8 20 8 20;
+    -fx-background-radius: 3;
+}
+
+.dialog-pane .button:hover {
+    -fx-background-color: #357abd;
+}
+
+.dialog-pane .button:pressed {
+    -fx-background-color: #2868a8;
+}
+
+.dialog-pane .button:default {
+    -fx-background-color: #27ae60;
+}
+
+.dialog-pane .button:default:hover {
+    -fx-background-color: #229954;
+}
+
+.dialog-pane .button:cancel {
+    -fx-background-color: #95a5a6;
+}
+
+.dialog-pane .button:cancel:hover {
+    -fx-background-color: #7f8c8d;
+}
+
+/* Text fields in dialogs */
+.text-field {
+    -fx-background-color: white;
+    -fx-border-color: #c0c0c0;
+    -fx-border-width: 1;
+    -fx-border-radius: 3;
+    -fx-padding: 5;
+}
+
+.text-field:focused {
+    -fx-border-color: #4a90e2;
+    -fx-border-width: 2;
+}
+
+/* Grid pane */
+.grid-pane {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+    -fx-padding: 20;
+}
+
+/* Auto-complete popup */
+.list-view {
+    -fx-background-color: white;
+    -fx-border-color: #4a90e2;
+    -fx-border-width: 1;
+}
+
+.list-cell {
+    -fx-padding: 5 10;
+}
+
+.list-cell:selected {
+    -fx-background-color: #4a90e2;
+    -fx-text-fill: white;
+}
+
+.list-cell:hover {
+    -fx-background-color: #e8f4ff;
+}

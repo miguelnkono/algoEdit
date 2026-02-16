@@ -14,8 +14,15 @@ public class Main extends Application
     {
         FXMLLoader fxmlLoader = new FXMLLoader(Main.class.getResource("main-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load());
+
+        // Load stylesheet
+        String css = Main.class.getResource("styles.css").toExternalForm();
+        scene.getStylesheets().add(css);
+
         stage.setTitle("algoEdit");
         stage.setScene(scene);
+        stage.setMinWidth(600);
+        stage.setMinHeight(400);
         stage.show();
     }
 }

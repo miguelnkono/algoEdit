@@ -10,6 +10,12 @@ module io.dream.algoedit {
     requires org.kordamp.bootstrapfx.core;
     requires eu.hansolo.tilesfx;
 
+    // RichTextFX for advanced code editing
+    requires org.fxmisc.richtext;
+    requires reactfx;
+    requires org.fxmisc.flowless;
+    requires org.fxmisc.undo;
+
     opens io.dream.algoedit to javafx.fxml;
     exports io.dream.algoedit;
 }
