@@ -17,10 +17,6 @@ import java.util.function.IntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Enhanced EditorTab with RichTextFX CodeArea, syntax highlighting,
- * line numbers, and auto-completion.
- */
 public class EditorTab extends Tab {
 
     private final CodeArea codeArea;

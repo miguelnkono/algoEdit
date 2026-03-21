@@ -7,9 +7,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Syntax highlighter for AlgoLang based on the provided grammar.
- */
 public class AlgoLangSyntaxHighlighter {
 
     // Keywords from the grammar

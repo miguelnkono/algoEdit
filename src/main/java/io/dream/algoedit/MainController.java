@@ -73,8 +73,6 @@ public class MainController {
         menuRun.setAccelerator(new KeyCodeCombination(KeyCode.F5));
     }
 
-    // ==================== FILE OPERATIONS ====================
-
     @FXML
     private void handleNew() {
         createNewTab();
@@ -156,8 +154,6 @@ public class MainController {
         }
         Platform.exit();
     }
-
-    // ==================== EDIT OPERATIONS ====================
 
     @FXML
     private void handleUndo() {
@@ -266,12 +262,6 @@ public class MainController {
         );
         alert.showAndWait();
 
-        // TODO: Replace with actual interpreter integration
-        // Example:
-        // String code = tab.getEditorContent();
-        // AlgoLangInterpreter interpreter = new AlgoLangInterpreter();
-        // String output = interpreter.execute(code);
-        // showOutputDialog(output);
     }
 
     @FXML
