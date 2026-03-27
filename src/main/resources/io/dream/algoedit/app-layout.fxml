@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
+
+<VBox prefHeight="600.0" prefWidth="900.0"
+      xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="io.dream.algoedit.MainController">
+  <children>
+
+    <!-- ===== Menu Bar ===== -->
+    <MenuBar VBox.vgrow="NEVER">
+      <menus>
+
+        <!-- File -->
+        <Menu mnemonicParsing="false" text="File">
+          <items>
+            <MenuItem fx:id="menuNew"     mnemonicParsing="false" text="New"      onAction="#handleNew"    />
+            <MenuItem fx:id="menuOpen"    mnemonicParsing="false" text="Open…"    onAction="#handleOpen"   />
+            <SeparatorMenuItem mnemonicParsing="false" />
+            <MenuItem fx:id="menuClose"   mnemonicParsing="false" text="Close"    onAction="#handleClose"  />
+            <MenuItem fx:id="menuSave"    mnemonicParsing="false" text="Save"     onAction="#handleSave"   />
+            <MenuItem fx:id="menuSaveAs"  mnemonicParsing="false" text="Save As…" onAction="#handleSaveAs" />
+            <SeparatorMenuItem mnemonicParsing="false" />
+            <MenuItem fx:id="menuQuit"    mnemonicParsing="false" text="Quit"     onAction="#handleQuit"   />
+          </items>
+        </Menu>
+
+        <!-- Edit -->
+        <Menu mnemonicParsing="false" text="Edit">
+          <items>
+            <MenuItem fx:id="menuUndo"      mnemonicParsing="false" text="Undo"       onAction="#handleUndo"      />
+            <MenuItem fx:id="menuRedo"      mnemonicParsing="false" text="Redo"       onAction="#handleRedo"      />
+            <SeparatorMenuItem mnemonicParsing="false" />
+            <MenuItem fx:id="menuCut"       mnemonicParsing="false" text="Cut"        onAction="#handleCut"       />
+            <MenuItem fx:id="menuCopy"      mnemonicParsing="false" text="Copy"       onAction="#handleCopy"      />
+            <MenuItem fx:id="menuPaste"     mnemonicParsing="false" text="Paste"      onAction="#handlePaste"     />
+            <MenuItem fx:id="menuDelete"    mnemonicParsing="false" text="Delete"     onAction="#handleDelete"    />
+            <SeparatorMenuItem mnemonicParsing="false" />
+            <MenuItem fx:id="menuSelectAll" mnemonicParsing="false" text="Select All" onAction="#handleSelectAll" />
+            <SeparatorMenuItem mnemonicParsing="false" />
+            <MenuItem fx:id="menuFind"      mnemonicParsing="false" text="Find…"      onAction="#handleFind"      />
+            <MenuItem fx:id="menuReplace"   mnemonicParsing="false" text="Replace…"   onAction="#handleReplace"   />
+          </items>
+        </Menu>
+
+        <!-- Run -->
+        <Menu mnemonicParsing="false" text="Run">
+          <items>
+            <MenuItem fx:id="menuRun" mnemonicParsing="false" text="Execute" onAction="#handleRun" />
+          </items>
+        </Menu>
+
+        <!-- Help -->
+        <Menu mnemonicParsing="false" text="Help">
+          <items>
+            <MenuItem mnemonicParsing="false" text="About algoEdit" onAction="#handleAbout" />
+          </items>
+        </Menu>
+
+      </menus>
+    </MenuBar>
+
+    <!-- ===== Editor Tab Pane ===== -->
+    <TabPane fx:id="tabPane" VBox.vgrow="ALWAYS" tabClosingPolicy="ALL_TABS" />
+
+    <!-- ===== Status Bar ===== -->
+    <HBox styleClass="status-bar" VBox.vgrow="NEVER">
+      <children>
+        <Label fx:id="statusLabel" text="Ready" maxWidth="Infinity" HBox.hgrow="ALWAYS" />
+      </children>
+      <padding>
+        <Insets bottom="3.0" left="6.0" right="6.0" top="3.0" />
+      </padding>
+    </HBox>
+
+  </children>
+</VBox>

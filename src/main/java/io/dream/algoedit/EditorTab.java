@@ -1,21 +1,24 @@
 package io.dream.algoedit;
 
+import java.io.File;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.fxmisc.richtext.CodeArea;
+
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Tab;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Popup;
-import org.fxmisc.richtext.CodeArea;
-import org.fxmisc.richtext.LineNumberFactory;
-
-import java.io.File;
-import java.time.Duration;
-import java.util.*;
-import java.util.function.IntFunction;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class EditorTab extends Tab {
 
@@ -31,26 +34,37 @@ public class EditorTab extends Tab {
         this.originalTitle = title;
         this.modified = false;
 
-        // Create code area with RichTextFX
+        // code area
         codeArea = new CodeArea();
-        codeArea.setStyle("-fx-font-family: 'Consolas', 'Monaco', 'Courier New', monospace; -fx-font-size: 14px;");
+        codeArea.setStyle(
+                "-fx-font-family: 'Iosevka Charon Mono', 'Cascadia Code', " +
+                        "'Consolas', 'Monaco', monospace; -fx-font-size: 17px;");
 
-        // Add line numbers with custom styling
-        IntFunction<javafx.scene.Node> numberFactory = LineNumberFactory.get(codeArea);
-        IntFunction<javafx.scene.Node> graphicFactory = line -> {
-            HBox hbox = new HBox(
-                    numberFactory.apply(line)
-            );
+        // line numbering
+        // RichTextFX calls the factory each time a paragraph is added/removed,
+        // so the lineIndex is always current — no listener needed.
+        codeArea.setParagraphGraphicFactory(lineIndex -> {
+            Label numLabel = new Label(String.valueOf(lineIndex + 1));
+            numLabel.getStyleClass().add("lineno");
+            numLabel.setMinWidth(42);
+            numLabel.setPrefWidth(42);
+            numLabel.setAlignment(Pos.CENTER_RIGHT);
+            numLabel.setPadding(new Insets(0, 10, 0, 6));
+
+            HBox hbox = new HBox(numLabel);
             hbox.setAlignment(Pos.CENTER_LEFT);
-            hbox.setStyle("-fx-background-color: #f0f0f0; -fx-padding: 0 5 0 5;");
+            hbox.setStyle(
+                    "-fx-background-color: #161b22;" +
+                            "-fx-border-color: transparent #30363d transparent transparent;" +
+                            "-fx-border-width: 0 1 0 0;");
             return hbox;
-        };
-        codeArea.setParagraphGraphicFactory(graphicFactory);
+        });
 
-        // Enable syntax highlighting with a small delay to avoid performance issues
+        // Syntax highlighting (debounced 50 ms)
         codeArea.multiPlainChanges()
                 .successionEnds(Duration.ofMillis(50))
-                .subscribe(ignore -> codeArea.setStyleSpans(0, AlgoLangSyntaxHighlighter.computeHighlighting(codeArea.getText())));
+                .subscribe(ignore -> codeArea.setStyleSpans(
+                        0, AlgoLangSyntaxHighlighter.computeHighlighting(codeArea.getText())));
 
         // Track modifications
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
@@ -59,34 +73,35 @@ public class EditorTab extends Tab {
             }
         });
 
-        // Setup auto-completion
+        // Auto-completion
         setupAutoCompletion();
 
-        // Wrap in StackPane
+        // Layout
         StackPane container = new StackPane(codeArea);
+        container.setStyle("-fx-background-color: #0d1117;");
         setContent(container);
         setClosable(true);
     }
 
-    /**
-     * Setup auto-completion popup.
-     */
+    // ── Auto-completion
+    // ───────────────────────────────────────────────────────────
+
     private void setupAutoCompletion() {
         autoCompletePopup = new Popup();
         autoCompletePopup.setAutoHide(true);
 
         suggestionList = new ListView<>();
-        suggestionList.setPrefHeight(150);
-        suggestionList.setPrefWidth(250);
-        suggestionList.setStyle("-fx-font-family: 'Consolas', 'Monaco', monospace; -fx-font-size: 12px;");
+        suggestionList.setPrefHeight(180);
+        suggestionList.setPrefWidth(260);
+        suggestionList.setStyle(
+                "-fx-background-color: #1c2330;" +
+                        "-fx-border-color: #30363d; -fx-border-width: 1;" +
+                        "-fx-font-family: 'Iosevka Charon Mono', 'JetBrains Mono','Consolas',monospace; -fx-font-size: 12px;");
 
-        // Handle suggestion selection
         suggestionList.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) {
+            if (event.getClickCount() == 2)
                 insertSuggestion();
-            }
         });
-
         suggestionList.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 insertSuggestion();
@@ -100,7 +115,6 @@ public class EditorTab extends Tab {
 
         autoCompletePopup.getContent().add(suggestionList);
 
-        // Trigger auto-completion on Ctrl+Space
         codeArea.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.SPACE && event.isControlDown()) {
                 showAutoComplete();
@@ -111,51 +125,37 @@ public class EditorTab extends Tab {
             }
         });
 
-        // Trigger on typing (optional - can be disabled if too intrusive)
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
             if (autoCompletePopup.isShowing()) {
-                String currentWord = getCurrentWord();
-                if (currentWord.length() < 2) {
+                String word = getCurrentWord();
+                if (word.length() < 2)
                     autoCompletePopup.hide();
-                } else {
-                    updateAutoComplete(currentWord);
-                }
+                else
+                    updateAutoComplete(word);
             }
         });
     }
 
-    /**
-     * Show auto-completion popup with suggestions.
-     */
     private void showAutoComplete() {
-        String currentWord = getCurrentWord();
-        if (currentWord.length() < 1) {
+        String word = getCurrentWord();
+        if (word.isEmpty()) {
             autoCompletePopup.hide();
             return;
         }
-
-        updateAutoComplete(currentWord);
+        updateAutoComplete(word);
     }
 
-    /**
-     * Update auto-complete suggestions based on current word.
-     */
     private void updateAutoComplete(String currentWord) {
-        // Get matching keywords and templates
         List<String> suggestions = new ArrayList<>();
 
-        // Add matching keywords
-        for (String keyword : AlgoLangSyntaxHighlighter.getKeywords()) {
-            if (keyword.toLowerCase().startsWith(currentWord.toLowerCase())) {
-                suggestions.add(keyword);
-            }
+        for (String w : AlgoLangSyntaxHighlighter.getAllCompletions()) {
+            if (w.toLowerCase().startsWith(currentWord.toLowerCase()))
+                suggestions.add(w);
         }
-
-        // Add matching templates
-        for (Map.Entry<String, String> entry : AlgoLangSyntaxHighlighter.getCodeTemplates().entrySet()) {
-            if (entry.getKey().toLowerCase().startsWith(currentWord.toLowerCase())) {
-                suggestions.add(entry.getKey() + " (template)");
-            }
+        for (Map.Entry<String, String> e : AlgoLangSyntaxHighlighter.getCodeTemplates().entrySet()) {
+            String key = e.getKey();
+            if (key.toLowerCase().startsWith(currentWord.toLowerCase()) && !suggestions.contains(key))
+                suggestions.add(key + "  [template]");
         }
 
         if (suggestions.isEmpty()) {
@@ -166,86 +166,53 @@ public class EditorTab extends Tab {
         suggestionList.getItems().setAll(suggestions);
         suggestionList.getSelectionModel().selectFirst();
 
-        // Position popup near caret
         Optional<Bounds> caretBounds = codeArea.getCaretBounds();
         if (caretBounds.isPresent()) {
-            Bounds bounds = caretBounds.get();
-            if (!autoCompletePopup.isShowing()) {
-                autoCompletePopup.show(
-                        codeArea,
-                        bounds.getMaxX(),
-                        bounds.getMaxY()
-                );
-            }
+            Bounds b = caretBounds.get();
+            if (!autoCompletePopup.isShowing())
+                autoCompletePopup.show(codeArea, b.getMaxX(), b.getMaxY());
         }
     }
 
-    /**
-     * Insert selected suggestion into code area.
-     */
     private void insertSuggestion() {
         String selected = suggestionList.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-
+        if (selected == null)
+            return;
         autoCompletePopup.hide();
 
-        // Remove " (template)" suffix if present
-        boolean isTemplate = selected.endsWith(" (template)");
-        if (isTemplate) {
-            selected = selected.replace(" (template)", "");
-        }
-
-        String currentWord = getCurrentWord();
         int caretPos = codeArea.getCaretPosition();
-        int wordStart = caretPos - currentWord.length();
+        String text = codeArea.getText();
+        int start = caretPos - 1;
+        while (start >= 0 && Character.isLetterOrDigit(text.charAt(start)))
+            start--;
+        start++;
 
-        // Replace current word with suggestion
-        codeArea.replaceText(wordStart, caretPos, "");
+        boolean isTemplate = selected.endsWith("  [template]");
+        String keyword = isTemplate
+                ? selected.substring(0, selected.length() - "  [template]".length())
+                : selected;
+        String insertion = isTemplate
+                ? AlgoLangSyntaxHighlighter.getCodeTemplates().getOrDefault(keyword, keyword)
+                : keyword;
 
-        if (isTemplate) {
-            // Insert template
-            String template = AlgoLangSyntaxHighlighter.getCodeTemplates().get(selected);
-            if (template != null) {
-                // Find first placeholder
-                Pattern placeholder = Pattern.compile("\\$\\{([^}]+)\\}");
-                Matcher matcher = placeholder.matcher(template);
-
-                if (matcher.find()) {
-                    String firstPlaceholder = matcher.group(0);
-                    codeArea.insertText(wordStart, template);
-
-                    // Select first placeholder
-                    int placeholderStart = wordStart + template.indexOf(firstPlaceholder);
-                    codeArea.selectRange(placeholderStart, placeholderStart + firstPlaceholder.length());
-                } else {
-                    codeArea.insertText(wordStart, template);
-                }
-            }
-        } else {
-            // Insert keyword
-            codeArea.insertText(wordStart, selected);
-        }
-
+        codeArea.replaceText(start, caretPos, insertion);
         codeArea.requestFocus();
     }
 
-    /**
-     * Get the current word being typed at caret position.
-     */
     private String getCurrentWord() {
         int caretPos = codeArea.getCaretPosition();
         String text = codeArea.getText();
-
-        if (caretPos == 0 || caretPos > text.length()) return "";
-
+        if (caretPos == 0 || caretPos > text.length())
+            return "";
         int start = caretPos - 1;
-        while (start >= 0 && Character.isLetterOrDigit(text.charAt(start))) {
+        while (start >= 0 && Character.isLetterOrDigit(text.charAt(start)))
             start--;
-        }
         start++;
-
         return text.substring(start, caretPos);
     }
+
+    // ── Public API
+    // ────────────────────────────────────────────────────────────────
 
     public CodeArea getCodeArea() {
         return codeArea;
@@ -257,6 +224,7 @@ public class EditorTab extends Tab {
 
     public void setEditorContent(String text) {
         codeArea.replaceText(text);
+        codeArea.setStyleSpans(0, AlgoLangSyntaxHighlighter.computeHighlighting(text));
     }
 
     public File getFile() {
@@ -279,9 +247,8 @@ public class EditorTab extends Tab {
 
     private void updateTitle() {
         String title = file != null ? file.getName() : originalTitle;
-        if (modified) {
-            title = "* " + title;
-        }
+        if (modified)
+            title = "● " + title; // dot instead of asterisk — more modern
         setText(title);
     }
 }

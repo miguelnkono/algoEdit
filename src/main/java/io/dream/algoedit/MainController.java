@@ -1,64 +1,103 @@
 package io.dream.algoedit;
 
-import javafx.application.Platform;
-import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.GridPane;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
-import org.fxmisc.richtext.CodeArea;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Optional;
 
+import org.fxmisc.richtext.CodeArea;
+
+import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+
 public class MainController {
 
-    @FXML private MenuItem menuNew;
-    @FXML private MenuItem menuOpen;
-    @FXML private MenuItem menuSave;
-    @FXML private MenuItem menuSaveAs;
-    @FXML private MenuItem menuClose;
-    @FXML private MenuItem menuQuit;
+    // ── Menu items
+    // ────────────────────────────────────────────────────────────────
+    @FXML
+    private MenuItem menuNew, menuOpen, menuSave, menuSaveAs, menuClose, menuQuit;
+    @FXML
+    private MenuItem menuUndo, menuRedo, menuCut, menuCopy, menuPaste,
+            menuDelete, menuSelectAll, menuFind, menuReplace;
+    @FXML
+    private MenuItem menuRun;
 
-    @FXML private MenuItem menuUndo;
-    @FXML private MenuItem menuRedo;
-    @FXML private MenuItem menuCut;
-    @FXML private MenuItem menuCopy;
-    @FXML private MenuItem menuPaste;
-    @FXML private MenuItem menuDelete;
-    @FXML private MenuItem menuSelectAll;
-    @FXML private MenuItem menuFind;
-    @FXML private MenuItem menuReplace;
+    // ── Main UI
+    // ───────────────────────────────────────────────────────────────────
+    @FXML
+    private TabPane tabPane;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private Label aiStatusLabel;
 
-    @FXML private MenuItem menuRun;
+    // ── File explorer panel
+    // ───────────────────────────────────────────────────────
+    @FXML
+    private ListView<String> fileListView;
 
-    @FXML private TabPane tabPane;
-    @FXML private Label statusLabel;
+    // ── AI chat panel
+    // ─────────────────────────────────────────────────────────────
+    @FXML
+    private VBox chatMessagesBox;
+    @FXML
+    private ScrollPane chatScrollPane;
+    @FXML
+    private TextArea chatInput;
 
     private int untitledCounter = 1;
 
+    // ────────────────────────────────────────────────────────────────────────────
     @FXML
     public void initialize() {
         setupMenuAccelerators();
         createNewTab();
         updateStatus();
+        addWelcomeAiMessage();
+
+        // Defer file list refresh until after full FXML injection
+        Platform.runLater(this::refreshFileList);
+
+        // Ctrl+Enter sends the chat message
+        chatInput.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER && event.isControlDown()) {
+                handleSendChat();
+                event.consume();
+            }
+        });
     }
 
     private void setupMenuAccelerators() {
-        // File menu shortcuts
         menuNew.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
         menuOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
         menuSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN));
-        menuSaveAs.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
+        menuSaveAs.setAccelerator(
+                new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         menuClose.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.CONTROL_DOWN));
         menuQuit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN));
-
-        // Edit menu shortcuts
         menuUndo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.CONTROL_DOWN));
         menuRedo.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.CONTROL_DOWN));
         menuCut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.CONTROL_DOWN));
@@ -68,11 +107,11 @@ public class MainController {
         menuSelectAll.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.CONTROL_DOWN));
         menuFind.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN));
         menuReplace.setAccelerator(new KeyCodeCombination(KeyCode.H, KeyCombination.CONTROL_DOWN));
-
-        // Run menu shortcut
         menuRun.setAccelerator(new KeyCodeCombination(KeyCode.F5));
     }
 
+    // ── File menu
+    // ─────────────────────────────────────────────────────────────────
     @FXML
     private void handleNew() {
         createNewTab();
@@ -80,155 +119,124 @@ public class MainController {
 
     @FXML
     private void handleOpen() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open File");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("All Files", "*.*"),
-                new FileChooser.ExtensionFilter("Algo Files", "*.algo"),
-                new FileChooser.ExtensionFilter("Text Files", "*.txt")
-        );
-
-        File file = fileChooser.showOpenDialog(getStage());
-        if (file != null) {
+        FileChooser fc = fileChooser("Open File");
+        File file = fc.showOpenDialog(getStage());
+        if (file != null)
             openFile(file);
-        }
     }
 
     @FXML
     private void handleSave() {
-        EditorTab currentTab = getCurrentEditorTab();
-        if (currentTab != null) {
-            if (currentTab.getFile() == null) {
-                handleSaveAs();
-            } else {
-                saveFile(currentTab);
-            }
-        }
+        EditorTab tab = getCurrentEditorTab();
+        if (tab == null)
+            return;
+        if (tab.getFile() == null)
+            handleSaveAs();
+        else
+            saveFile(tab);
     }
 
     @FXML
     private void handleSaveAs() {
-        EditorTab currentTab = getCurrentEditorTab();
-        if (currentTab != null) {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Save File As");
-            fileChooser.getExtensionFilters().addAll(
-                    new FileChooser.ExtensionFilter("All Files", "*.*"),
-                    new FileChooser.ExtensionFilter("Algo Files", "*.algo"),
-                    new FileChooser.ExtensionFilter("Text Files", "*.txt")
-            );
-
-            if (currentTab.getFile() != null) {
-                fileChooser.setInitialDirectory(currentTab.getFile().getParentFile());
-                fileChooser.setInitialFileName(currentTab.getFile().getName());
-            }
-
-            File file = fileChooser.showSaveDialog(getStage());
-            if (file != null) {
-                currentTab.setFile(file);
-                saveFile(currentTab);
-            }
+        EditorTab tab = getCurrentEditorTab();
+        if (tab == null)
+            return;
+        FileChooser fc = fileChooser("Save File As");
+        if (tab.getFile() != null) {
+            fc.setInitialDirectory(tab.getFile().getParentFile());
+            fc.setInitialFileName(tab.getFile().getName());
+        }
+        File file = fc.showSaveDialog(getStage());
+        if (file != null) {
+            tab.setFile(file);
+            saveFile(tab);
         }
     }
 
     @FXML
     private void handleClose() {
-        Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
-        if (currentTab != null) {
-            closeTab(currentTab);
-        }
+        Tab tab = tabPane.getSelectionModel().getSelectedItem();
+        if (tab != null)
+            closeTab(tab);
     }
 
     @FXML
     private void handleQuit() {
-        // Check all tabs for unsaved changes
         for (Tab tab : tabPane.getTabs()) {
-            if (tab instanceof EditorTab editorTab) {
-                if (editorTab.isModified()) {
-                    tabPane.getSelectionModel().select(tab);
-                    if (!promptSaveChanges(editorTab)) {
-                        return; // User cancelled
-                    }
-                }
+            if (tab instanceof EditorTab et && et.isModified()) {
+                tabPane.getSelectionModel().select(tab);
+                if (!promptSaveChanges(et))
+                    return;
             }
         }
         Platform.exit();
     }
 
+    // ── Edit menu
+    // ─────────────────────────────────────────────────────────────────
     @FXML
     private void handleUndo() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            tab.getCodeArea().undo();
-        }
+        EditorTab t = getCurrentEditorTab();
+        if (t != null)
+            t.getCodeArea().undo();
     }
 
     @FXML
     private void handleRedo() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            tab.getCodeArea().redo();
-        }
+        EditorTab t = getCurrentEditorTab();
+        if (t != null)
+            t.getCodeArea().redo();
     }
 
     @FXML
     private void handleCut() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            tab.getCodeArea().cut();
-        }
+        EditorTab t = getCurrentEditorTab();
+        if (t != null)
+            t.getCodeArea().cut();
     }
 
     @FXML
     private void handleCopy() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            tab.getCodeArea().copy();
-        }
+        EditorTab t = getCurrentEditorTab();
+        if (t != null)
+            t.getCodeArea().copy();
     }
 
     @FXML
     private void handlePaste() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            tab.getCodeArea().paste();
-        }
-    }
-
-    @FXML
-    private void handleDelete() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            if (tab.getCodeArea().getSelectedText().length() > 0) {
-                tab.getCodeArea().replaceSelection("");
-            }
-        }
+        EditorTab t = getCurrentEditorTab();
+        if (t != null)
+            t.getCodeArea().paste();
     }
 
     @FXML
     private void handleSelectAll() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            tab.getCodeArea().selectAll();
-        }
+        EditorTab t = getCurrentEditorTab();
+        if (t != null)
+            t.getCodeArea().selectAll();
+    }
+
+    @FXML
+    private void handleDelete() {
+        EditorTab t = getCurrentEditorTab();
+        if (t != null && !t.getCodeArea().getSelectedText().isEmpty())
+            t.getCodeArea().replaceSelection("");
     }
 
     @FXML
     private void handleFind() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
+        if (getCurrentEditorTab() != null)
             showFindDialog(false);
-        }
     }
 
     @FXML
     private void handleReplace() {
-        EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
+        if (getCurrentEditorTab() != null)
             showFindDialog(true);
-        }
     }
 
+    // ── Run menu
+    // ──────────────────────────────────────────────────────────────────
     @FXML
     private void handleRun() {
         EditorTab tab = getCurrentEditorTab();
@@ -236,121 +244,170 @@ public class MainController {
             showError("No File", "Please open or create a file first.");
             return;
         }
-
-        // Save file if modified
         if (tab.isModified()) {
-            if (tab.getFile() == null) {
+            if (tab.getFile() == null)
                 handleSaveAs();
-            } else {
+            else
                 saveFile(tab);
-            }
         }
 
-        // Show placeholder dialog - you'll integrate your interpreter here
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Run AlgoLang Program");
-        alert.setHeaderText("Ready to Execute");
-        alert.setContentText(
-                "File: " + (tab.getFile() != null ? tab.getFile().getName() : "Untitled") + "\n\n" +
-                        "Integration Point:\n" +
-                        "This is where you'll call your AlgoLang interpreter.\n\n" +
-                        "Suggested integration:\n" +
-                        "1. Pass the file path or text content to your interpreter\n" +
-                        "2. Capture stdout/stderr\n" +
-                        "3. Display output in a console panel or dialog\n\n" +
-                        "Press F5 or Run → Execute to run your program."
-        );
-        alert.showAndWait();
-
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle("Run AlgoLang Program");
+        a.setHeaderText("Ready to Execute");
+        a.setContentText("File: " + (tab.getFile() != null ? tab.getFile().getName() : "Untitled") +
+                "\n\nIntegration point: pass file path or text to your AlgoLang interpreter.");
+        a.showAndWait();
     }
 
+    // ── Help menu
+    // ─────────────────────────────────────────────────────────────────
     @FXML
     private void handleAbout() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("About algoEdit");
-        alert.setHeaderText("algoEdit - Text Editor for AlgoLang");
-        alert.setContentText(
-                "Version 2.0\n\n" +
-                        "A modern text editor designed for editing AlgoLang files.\n\n" +
-                        "Features:\n" +
-                        "• Syntax highlighting for AlgoLang\n" +
-                        "• Line numbers\n" +
-                        "• Auto-completion (Ctrl+Space)\n" +
-                        "• Code templates\n" +
-                        "• Multi-tab editing\n" +
-                        "• Find and replace\n\n" +
-                        "© 2024 Dream.io"
-        );
-        alert.showAndWait();
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle("About algoEdit");
+        a.setHeaderText("algoEdit — Text Editor for AlgoLang");
+        a.setContentText("Version 3.0\n\nFeatures:\n" +
+                "• Three-panel layout: Explorer · Editor · AI Assistant\n" +
+                "• Syntax highlighting for AlgoLang\n" +
+                "• Styled line numbers\n" +
+                "• Auto-completion (Ctrl+Space)\n" +
+                "• Code templates\n" +
+                "• Multi-tab editing\n" +
+                "• Find and replace\n\n© 2024 Dream.io");
+        a.showAndWait();
     }
 
-    // ==================== HELPER METHODS ====================
+    // ── AI Panel
+    // ──────────────────────────────────────────────────────────────────
+
+    /** Called by the "Send" button. */
+    @FXML
+    public void handleSendChat() {
+        String question = chatInput.getText().trim();
+        if (question.isEmpty())
+            return;
+        chatInput.clear();
+        addChatBubble(question, true);
+        setAiStatus("thinking…");
+
+        // Gather code context (selected text or full file)
+        EditorTab tab = getCurrentEditorTab();
+        String context = "";
+        if (tab != null) {
+            String sel = tab.getCodeArea().getSelectedText();
+            context = (sel != null && !sel.isBlank()) ? sel : tab.getEditorContent();
+        }
+
+        final String finalQuestion = question;
+        final String finalContext = context;
+
+        // Run AI call on background thread
+        new Thread(() -> {
+            String response = AiAssistant.ask(finalQuestion, finalContext);
+            Platform.runLater(() -> {
+                addChatBubble(response, false);
+                setAiStatus("idle");
+            });
+        }, "ai-chat-thread").start();
+    }
+
+    /** Called by the "Explain Code" button — auto-fills prompt and sends. */
+    @FXML
+    public void handleExplainCode() {
+        EditorTab tab = getCurrentEditorTab();
+        if (tab == null) {
+            addChatBubble("Please open a file first.", false);
+            return;
+        }
+        String sel = tab.getCodeArea().getSelectedText();
+        String code = (sel != null && !sel.isBlank()) ? sel : tab.getEditorContent();
+
+        if (code.isBlank()) {
+            addChatBubble("The current file is empty. Start typing some AlgoLang code!", false);
+            return;
+        }
+        chatInput.setText("Explain this AlgoLang code:");
+        handleSendChat();
+    }
+
+    // ── Chat helpers
+    // ──────────────────────────────────────────────────────────────
+
+    private void addWelcomeAiMessage() {
+        addChatBubble("Hello! I'm your AlgoLang assistant.\n\n" +
+                "I can explain your code, help you debug, or answer questions as you type.\n\n" +
+                "Use Ctrl+Space for auto-completion in the editor.", false);
+    }
+
+    /**
+     * Creates a chat bubble Label and adds it to the messages VBox.
+     *
+     * @param text   the message text
+     * @param isUser true = user bubble (right-aligned), false = AI bubble
+     *               (left-aligned)
+     */
+    private void addChatBubble(String text, boolean isUser) {
+        Label bubble = new Label(text);
+        bubble.setWrapText(true);
+        bubble.setMaxWidth(260);
+        bubble.getStyleClass().add(isUser ? "chat-bubble-user" : "chat-bubble-ai");
+
+        HBox row = new HBox(bubble);
+        row.setAlignment(isUser ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        HBox.setMargin(bubble, new Insets(0, 0, 0, isUser ? 16 : 0));
+
+        chatMessagesBox.getChildren().add(row);
+
+        // Auto-scroll to bottom
+        Platform.runLater(() -> chatScrollPane.setVvalue(1.0));
+    }
+
+    private void setAiStatus(String status) {
+        if (aiStatusLabel != null)
+            aiStatusLabel.setText("AI: " + status);
+    }
+
+    // ── Tab management
+    // ────────────────────────────────────────────────────────────
 
     private void createNewTab() {
         String title = "Untitled-" + untitledCounter++;
         EditorTab tab = new EditorTab(title);
-
-        // Setup tab close request
-        tab.setOnCloseRequest(event -> {
-            if (!closeTab(tab)) {
-                event.consume();
-            }
+        tab.setOnCloseRequest(e -> {
+            if (!closeTab(tab))
+                e.consume();
         });
-
-        // Update status on text changes
-        tab.getCodeArea().textProperty().addListener((obs, old, newVal) -> {
-            updateStatus();
-        });
-
-        // Update status on caret position changes
-        tab.getCodeArea().caretPositionProperty().addListener((obs, old, newVal) -> {
-            updateStatus();
-        });
-
+        tab.getCodeArea().textProperty().addListener((o, a, b) -> updateStatus());
+        tab.getCodeArea().caretPositionProperty().addListener((o, a, b) -> updateStatus());
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
         tab.getCodeArea().requestFocus();
+        refreshFileList();
     }
 
     private void openFile(File file) {
-        // Check if file is already open
         for (Tab tab : tabPane.getTabs()) {
-            if (tab instanceof EditorTab editorTab) {
-                if (file.equals(editorTab.getFile())) {
-                    tabPane.getSelectionModel().select(tab);
-                    return;
-                }
+            if (tab instanceof EditorTab et && file.equals(et.getFile())) {
+                tabPane.getSelectionModel().select(tab);
+                return;
             }
         }
-
         try {
             String content = Files.readString(file.toPath());
             EditorTab tab = new EditorTab(file.getName());
             tab.setFile(file);
             tab.setEditorContent(content);
             tab.setModified(false);
-
-            // Setup tab close request
-            tab.setOnCloseRequest(event -> {
-                if (!closeTab(tab)) {
-                    event.consume();
-                }
+            tab.setOnCloseRequest(e -> {
+                if (!closeTab(tab))
+                    e.consume();
             });
-
-            // Update status on text changes
-            tab.getCodeArea().textProperty().addListener((obs, old, newVal) -> {
-                updateStatus();
-            });
-
-            // Update status on caret position changes
-            tab.getCodeArea().caretPositionProperty().addListener((obs, old, newVal) -> {
-                updateStatus();
-            });
-
+            tab.getCodeArea().textProperty().addListener((o, a, b) -> updateStatus());
+            tab.getCodeArea().caretPositionProperty().addListener((o, a, b) -> updateStatus());
             tabPane.getTabs().add(tab);
             tabPane.getSelectionModel().select(tab);
             tab.getCodeArea().requestFocus();
-
+            refreshFileList();
         } catch (IOException e) {
             showError("Error opening file", "Could not open file: " + e.getMessage());
         }
@@ -361,234 +418,230 @@ public class MainController {
             Files.writeString(tab.getFile().toPath(), tab.getEditorContent());
             tab.setModified(false);
             updateStatus();
+            refreshFileList();
         } catch (IOException e) {
             showError("Error saving file", "Could not save file: " + e.getMessage());
         }
     }
 
     private boolean closeTab(Tab tab) {
-        if (tab instanceof EditorTab editorTab) {
-            if (editorTab.isModified()) {
-                if (!promptSaveChanges(editorTab)) {
-                    return false;
-                }
-            }
+        if (tab instanceof EditorTab et && et.isModified()) {
+            if (!promptSaveChanges(et))
+                return false;
         }
         tabPane.getTabs().remove(tab);
-
-        // Create new tab if all closed
-        if (tabPane.getTabs().isEmpty()) {
-            createNewTab();
-        }
-
+        refreshFileList();
         return true;
     }
 
     private boolean promptSaveChanges(EditorTab tab) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Unsaved Changes");
-        alert.setHeaderText("Do you want to save changes to " + tab.getText() + "?");
+        alert.setHeaderText("Save changes to " + tab.getText() + "?");
         alert.setContentText("Your changes will be lost if you don't save them.");
-
-        ButtonType saveButton = new ButtonType("Save");
-        ButtonType dontSaveButton = new ButtonType("Don't Save");
-        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-
-        alert.getButtonTypes().setAll(saveButton, dontSaveButton, cancelButton);
-
+        ButtonType save = new ButtonType("Save");
+        ButtonType dontSave = new ButtonType("Don't Save");
+        ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(save, dontSave, cancel);
         Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent()) {
-            if (result.get() == saveButton) {
-                if (tab.getFile() == null) {
-                    handleSaveAs();
-                } else {
-                    saveFile(tab);
-                }
-                return true;
-            } else if (result.get() == dontSaveButton) {
-                return true;
+        if (result.isEmpty() || result.get() == cancel)
+            return false;
+        if (result.get() == save) {
+            if (tab.getFile() == null)
+                handleSaveAs();
+            else
+                saveFile(tab);
+        }
+        return true;
+    }
+
+    /** Refresh the file explorer list to show all open tabs. */
+    private void refreshFileList() {
+        if (fileListView == null)
+            return; // guard: called before FXML injection completes
+        fileListView.getItems().clear();
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof EditorTab et) {
+                String label = et.getFile() != null ? et.getFile().getName() : et.getText();
+                fileListView.getItems().add(label);
             }
         }
-        return false;
+        // Clicking a file in the list switches to that tab
+        fileListView.setOnMouseClicked(event -> {
+            int idx = fileListView.getSelectionModel().getSelectedIndex();
+            if (idx >= 0 && idx < tabPane.getTabs().size()) {
+                tabPane.getSelectionModel().select(idx);
+                EditorTab et = getCurrentEditorTab();
+                if (et != null)
+                    et.getCodeArea().requestFocus();
+            }
+        });
     }
+
+    // ── Find / Replace
+    // ────────────────────────────────────────────────────────────
 
     private void showFindDialog(boolean showReplace) {
         EditorTab tab = getCurrentEditorTab();
-        if (tab == null) return;
+        if (tab == null)
+            return;
 
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(showReplace ? "Find and Replace" : "Find");
         dialog.setHeaderText(null);
 
-        // Create the dialog content
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
-
         TextField findField = new TextField();
         findField.setPromptText("Find");
         TextField replaceField = new TextField();
         replaceField.setPromptText("Replace with");
-
         grid.add(new Label("Find:"), 0, 0);
         grid.add(findField, 1, 0);
-
         if (showReplace) {
             grid.add(new Label("Replace:"), 0, 1);
             grid.add(replaceField, 1, 1);
         }
-
         dialog.getDialogPane().setContent(grid);
 
-        ButtonType findNextButton = new ButtonType("Find Next", ButtonBar.ButtonData.OK_DONE);
-        ButtonType replaceButton = new ButtonType("Replace", ButtonBar.ButtonData.OTHER);
-        ButtonType replaceAllButton = new ButtonType("Replace All", ButtonBar.ButtonData.OTHER);
-        ButtonType closeButton = new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType findNextBT = new ButtonType("Find Next", ButtonBar.ButtonData.OK_DONE);
+        ButtonType replaceBT = new ButtonType("Replace", ButtonBar.ButtonData.OTHER);
+        ButtonType replaceAllBT = new ButtonType("Replace All", ButtonBar.ButtonData.OTHER);
+        ButtonType closeBT = new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
+        if (showReplace)
+            dialog.getDialogPane().getButtonTypes().addAll(findNextBT, replaceBT, replaceAllBT, closeBT);
+        else
+            dialog.getDialogPane().getButtonTypes().addAll(findNextBT, closeBT);
 
+        Platform.runLater(findField::requestFocus);
+
+        ((Button) dialog.getDialogPane().lookupButton(findNextBT))
+                .addEventFilter(javafx.event.ActionEvent.ACTION, e -> {
+                    findNext(tab, findField.getText());
+                    e.consume();
+                });
         if (showReplace) {
-            dialog.getDialogPane().getButtonTypes().addAll(findNextButton, replaceButton, replaceAllButton, closeButton);
-        } else {
-            dialog.getDialogPane().getButtonTypes().addAll(findNextButton, closeButton);
+            ((Button) dialog.getDialogPane().lookupButton(replaceBT))
+                    .addEventFilter(javafx.event.ActionEvent.ACTION, e -> {
+                        replace(tab, findField.getText(), replaceField.getText());
+                        e.consume();
+                    });
+            ((Button) dialog.getDialogPane().lookupButton(replaceAllBT))
+                    .addEventFilter(javafx.event.ActionEvent.ACTION, e -> {
+                        replaceAll(tab, findField.getText(), replaceField.getText());
+                        dialog.close();
+                        e.consume();
+                    });
         }
-
-        Platform.runLater(() -> findField.requestFocus());
-
-        // Handle button actions
-        final Button findNextBtn = (Button) dialog.getDialogPane().lookupButton(findNextButton);
-        findNextBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-            findNext(tab, findField.getText());
-            event.consume();
-        });
-
-        if (showReplace) {
-            final Button replaceBtn = (Button) dialog.getDialogPane().lookupButton(replaceButton);
-            replaceBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-                replace(tab, findField.getText(), replaceField.getText());
-                event.consume();
-            });
-
-            final Button replaceAllBtn = (Button) dialog.getDialogPane().lookupButton(replaceAllButton);
-            replaceAllBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-                replaceAll(tab, findField.getText(), replaceField.getText());
-                dialog.close();
-                event.consume();
-            });
-        }
-
         dialog.showAndWait();
     }
 
     private void findNext(EditorTab tab, String searchText) {
-        if (searchText.isEmpty()) return;
-
-        CodeArea codeArea = tab.getCodeArea();
-        String text = codeArea.getText();
-        int startPos = codeArea.getCaretPosition();
-
-        int foundPos = text.indexOf(searchText, startPos);
-        if (foundPos == -1) {
-            // Search from beginning
-            foundPos = text.indexOf(searchText, 0);
-        }
-
-        if (foundPos != -1) {
-            codeArea.selectRange(foundPos, foundPos + searchText.length());
-            codeArea.requestFocus();
+        if (searchText.isEmpty())
+            return;
+        CodeArea ca = tab.getCodeArea();
+        String text = ca.getText();
+        int start = ca.getCaretPosition();
+        int pos = text.indexOf(searchText, start);
+        if (pos == -1)
+            pos = text.indexOf(searchText, 0);
+        if (pos != -1) {
+            ca.selectRange(pos, pos + searchText.length());
+            ca.requestFocus();
         } else {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Find");
-            alert.setHeaderText(null);
-            alert.setContentText("No matches found.");
-            alert.showAndWait();
+            showInfo("Find", "No matches found.");
         }
     }
 
     private void replace(EditorTab tab, String searchText, String replaceText) {
-        if (searchText.isEmpty()) return;
-
-        CodeArea codeArea = tab.getCodeArea();
-        String selected = codeArea.getSelectedText();
-
-        if (selected.equals(searchText)) {
-            codeArea.replaceSelection(replaceText);
-        }
-
+        if (searchText.isEmpty())
+            return;
+        CodeArea ca = tab.getCodeArea();
+        if (ca.getSelectedText().equals(searchText))
+            ca.replaceSelection(replaceText);
         findNext(tab, searchText);
     }
 
     private void replaceAll(EditorTab tab, String searchText, String replaceText) {
-        if (searchText.isEmpty()) return;
-
-        CodeArea codeArea = tab.getCodeArea();
-        String text = codeArea.getText();
-        String newText = text.replace(searchText, replaceText);
-
-        int count = (text.length() - newText.length()) / (searchText.length() - replaceText.length());
-        codeArea.replaceText(newText);
-
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Replace All");
-        alert.setHeaderText(null);
-        alert.setContentText("Replaced " + count + " occurrence(s).");
-        alert.showAndWait();
+        if (searchText.isEmpty())
+            return;
+        CodeArea ca = tab.getCodeArea();
+        String text = ca.getText();
+        int count = 0, idx = 0;
+        while ((idx = text.indexOf(searchText, idx)) != -1) {
+            count++;
+            idx += searchText.length();
+        }
+        ca.replaceText(text.replace(searchText, replaceText));
+        showInfo("Replace All", "Replaced " + count + " occurrence(s).");
     }
+
+    // ── Status bar
+    // ────────────────────────────────────────────────────────────────
 
     private void updateStatus() {
         EditorTab tab = getCurrentEditorTab();
-        if (tab != null) {
-            CodeArea codeArea = tab.getCodeArea();
-            int caretPos = codeArea.getCaretPosition();
-            String text = codeArea.getText();
-
-            // Calculate line and column
-            int line = 1;
-            int column = 1;
-            for (int i = 0; i < caretPos && i < text.length(); i++) {
-                if (text.charAt(i) == '\n') {
-                    line++;
-                    column = 1;
-                } else {
-                    column++;
-                }
-            }
-
-            // Calculate total lines
-            int totalLines = text.isEmpty() ? 1 : text.split("\n", -1).length;
-
-            String status = String.format("Line %d, Col %d | Total Lines: %d | Length: %d",
-                    line, column, totalLines, text.length());
-
-            if (tab.isModified()) {
-                status += " | Modified";
-            }
-
-            if (tab.getFile() != null) {
-                status += " | " + tab.getFile().getAbsolutePath();
-            }
-
-            statusLabel.setText(status);
-        } else {
+        if (tab == null) {
             statusLabel.setText("Ready");
+            return;
         }
+        CodeArea ca = tab.getCodeArea();
+        int caretPos = ca.getCaretPosition();
+        String text = ca.getText();
+        int line = 1, column = 1;
+        for (int i = 0; i < caretPos && i < text.length(); i++) {
+            if (text.charAt(i) == '\n') {
+                line++;
+                column = 1;
+            } else
+                column++;
+        }
+        int totalLines = text.isEmpty() ? 1 : text.split("\n", -1).length;
+        String status = String.format("Ln %d, Col %d   |   %d lines   |   %d chars",
+                line, column, totalLines, text.length());
+        if (tab.isModified())
+            status += "   |   ●  modified";
+        if (tab.getFile() != null)
+            status += "   |   " + tab.getFile().getAbsolutePath();
+        statusLabel.setText(status);
     }
 
+    // ── Utilities
+    // ─────────────────────────────────────────────────────────────────
+
     private EditorTab getCurrentEditorTab() {
-        Tab selected = tabPane.getSelectionModel().getSelectedItem();
-        if (selected instanceof EditorTab) {
-            return (EditorTab) selected;
-        }
-        return null;
+        Tab sel = tabPane.getSelectionModel().getSelectedItem();
+        return sel instanceof EditorTab et ? et : null;
     }
 
     private Stage getStage() {
         return (Stage) tabPane.getScene().getWindow();
     }
 
-    private void showError(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+    private FileChooser fileChooser(String title) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle(title);
+        fc.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Algo Files", "*.algo"),
+                new FileChooser.ExtensionFilter("Text Files", "*.txt"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
+        return fc;
+    }
+
+    private void showError(String title, String msg) {
+        Alert a = new Alert(Alert.AlertType.ERROR);
+        a.setTitle(title);
+        a.setHeaderText(null);
+        a.setContentText(msg);
+        a.showAndWait();
+    }
+
+    private void showInfo(String title, String msg) {
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle(title);
+        a.setHeaderText(null);
+        a.setContentText(msg);
+        a.showAndWait();
     }
 }
