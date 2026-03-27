@@ -36,7 +36,7 @@ public class AiAssistant {
      * @return the AI's plain-text response
      */
     public static String ask(String question, String context) {
-        // ── STUB — replace with your real API call ──────────────────────────────
+        // STUB — replace with your real API call
         // Example placeholder responses so the UI is functional out of the box:
         if (question.toLowerCase().contains("explain")) {
             if (context == null || context.isBlank()) {
@@ -50,6 +50,7 @@ public class AiAssistant {
                 "Your question was:\n\"" + question + "\"";
     }
 
+    // Helpers
     private static String buildExplanationStub(String code) {
         String[] lines = code.split("\n");
         StringBuilder sb = new StringBuilder();

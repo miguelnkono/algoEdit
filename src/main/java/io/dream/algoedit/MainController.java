@@ -35,8 +35,7 @@ import javafx.stage.Stage;
 
 public class MainController {
 
-    // ── Menu items
-    // ────────────────────────────────────────────────────────────────
+    // Menu items
     @FXML
     private MenuItem menuNew, menuOpen, menuSave, menuSaveAs, menuClose, menuQuit;
     @FXML
@@ -45,8 +44,7 @@ public class MainController {
     @FXML
     private MenuItem menuRun;
 
-    // ── Main UI
-    // ───────────────────────────────────────────────────────────────────
+    // Main UI
     @FXML
     private TabPane tabPane;
     @FXML
@@ -54,13 +52,11 @@ public class MainController {
     @FXML
     private Label aiStatusLabel;
 
-    // ── File explorer panel
-    // ───────────────────────────────────────────────────────
+    // File explorer
     @FXML
     private ListView<String> fileListView;
 
-    // ── AI chat panel
-    // ─────────────────────────────────────────────────────────────
+    // AI chat
     @FXML
     private VBox chatMessagesBox;
     @FXML
@@ -70,7 +66,6 @@ public class MainController {
 
     private int untitledCounter = 1;
 
-    // ────────────────────────────────────────────────────────────────────────────
     @FXML
     public void initialize() {
         setupMenuAccelerators();
@@ -78,18 +73,22 @@ public class MainController {
         updateStatus();
         addWelcomeAiMessage();
 
-        // Defer file list refresh until after full FXML injection
+        // Defer file-list refresh until after full FXML injection (avoids NPE
+        // if fileListView is inside a nested container and injects late).
         Platform.runLater(this::refreshFileList);
 
-        // Ctrl+Enter sends the chat message
-        chatInput.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER && event.isControlDown()) {
-                handleSendChat();
-                event.consume();
-            }
-        });
+        // Ctrl+Enter sends the chat message (Enter alone is a newline in TextArea)
+        if (chatInput != null) {
+            chatInput.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.ENTER && event.isControlDown()) {
+                    handleSendChat();
+                    event.consume();
+                }
+            });
+        }
     }
 
+    // Keyboard shortcuts
     private void setupMenuAccelerators() {
         menuNew.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
         menuOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
@@ -110,8 +109,7 @@ public class MainController {
         menuRun.setAccelerator(new KeyCodeCombination(KeyCode.F5));
     }
 
-    // ── File menu
-    // ─────────────────────────────────────────────────────────────────
+    // File menu
     @FXML
     private void handleNew() {
         createNewTab();
@@ -119,8 +117,7 @@ public class MainController {
 
     @FXML
     private void handleOpen() {
-        FileChooser fc = fileChooser("Open File");
-        File file = fc.showOpenDialog(getStage());
+        File file = buildFileChooser("Open File").showOpenDialog(getStage());
         if (file != null)
             openFile(file);
     }
@@ -141,7 +138,7 @@ public class MainController {
         EditorTab tab = getCurrentEditorTab();
         if (tab == null)
             return;
-        FileChooser fc = fileChooser("Save File As");
+        FileChooser fc = buildFileChooser("Save File As");
         if (tab.getFile() != null) {
             fc.setInitialDirectory(tab.getFile().getParentFile());
             fc.setInitialFileName(tab.getFile().getName());
@@ -172,8 +169,7 @@ public class MainController {
         Platform.exit();
     }
 
-    // ── Edit menu
-    // ─────────────────────────────────────────────────────────────────
+    // Edit menu
     @FXML
     private void handleUndo() {
         EditorTab t = getCurrentEditorTab();
@@ -235,8 +231,7 @@ public class MainController {
             showFindDialog(true);
     }
 
-    // ── Run menu
-    // ──────────────────────────────────────────────────────────────────
+    // Run menu
     @FXML
     private void handleRun() {
         EditorTab tab = getCurrentEditorTab();
@@ -255,34 +250,35 @@ public class MainController {
         a.setTitle("Run AlgoLang Program");
         a.setHeaderText("Ready to Execute");
         a.setContentText("File: " + (tab.getFile() != null ? tab.getFile().getName() : "Untitled") +
-                "\n\nIntegration point: pass file path or text to your AlgoLang interpreter.");
+                "\n\nIntegration point: pass the file path or text content to your AlgoLang interpreter.");
         a.showAndWait();
     }
 
-    // ── Help menu
-    // ─────────────────────────────────────────────────────────────────
+    // Help menu
     @FXML
     private void handleAbout() {
         Alert a = new Alert(Alert.AlertType.INFORMATION);
         a.setTitle("About algoEdit");
         a.setHeaderText("algoEdit — Text Editor for AlgoLang");
-        a.setContentText("Version 3.0\n\nFeatures:\n" +
-                "• Three-panel layout: Explorer · Editor · AI Assistant\n" +
-                "• Syntax highlighting for AlgoLang\n" +
-                "• Styled line numbers\n" +
-                "• Auto-completion (Ctrl+Space)\n" +
-                "• Code templates\n" +
-                "• Multi-tab editing\n" +
-                "• Find and replace\n\n© 2024 Dream.io");
+        a.setContentText(
+                "Version 3.0\n\n" +
+                        "Features:\n" +
+                        "• Three-panel layout: Explorer · Editor · AI Assistant\n" +
+                        "• Dark theme with syntax highlighting\n" +
+                        "• Styled line numbers\n" +
+                        "• Auto-completion (Ctrl+Space)\n" +
+                        "• Code templates\n" +
+                        "• Multi-tab editing\n" +
+                        "• Find and replace (Ctrl+F / Ctrl+H)\n\n" +
+                        "© 2024 Dream.io");
         a.showAndWait();
     }
 
-    // ── AI Panel
-    // ──────────────────────────────────────────────────────────────────
-
-    /** Called by the "Send" button. */
+    // AI Chat panel
     @FXML
     public void handleSendChat() {
+        if (chatInput == null)
+            return;
         String question = chatInput.getText().trim();
         if (question.isEmpty())
             return;
@@ -290,7 +286,6 @@ public class MainController {
         addChatBubble(question, true);
         setAiStatus("thinking…");
 
-        // Gather code context (selected text or full file)
         EditorTab tab = getCurrentEditorTab();
         String context = "";
         if (tab != null) {
@@ -298,22 +293,22 @@ public class MainController {
             context = (sel != null && !sel.isBlank()) ? sel : tab.getEditorContent();
         }
 
-        final String finalQuestion = question;
-        final String finalContext = context;
-
-        // Run AI call on background thread
-        new Thread(() -> {
-            String response = AiAssistant.ask(finalQuestion, finalContext);
+        final String q = question, ctx = context;
+        Thread t = new Thread(() -> {
+            String response = AiAssistant.ask(q, ctx);
             Platform.runLater(() -> {
                 addChatBubble(response, false);
                 setAiStatus("idle");
             });
-        }, "ai-chat-thread").start();
+        }, "ai-chat-thread");
+        t.setDaemon(true);
+        t.start();
     }
 
-    /** Called by the "Explain Code" button — auto-fills prompt and sends. */
     @FXML
     public void handleExplainCode() {
+        if (chatInput == null)
+            return;
         EditorTab tab = getCurrentEditorTab();
         if (tab == null) {
             addChatBubble("Please open a file first.", false);
@@ -321,32 +316,27 @@ public class MainController {
         }
         String sel = tab.getCodeArea().getSelectedText();
         String code = (sel != null && !sel.isBlank()) ? sel : tab.getEditorContent();
-
         if (code.isBlank()) {
-            addChatBubble("The current file is empty. Start typing some AlgoLang code!", false);
+            addChatBubble("The current file is empty.", false);
             return;
         }
         chatInput.setText("Explain this AlgoLang code:");
         handleSendChat();
     }
 
-    // ── Chat helpers
-    // ──────────────────────────────────────────────────────────────
-
     private void addWelcomeAiMessage() {
-        addChatBubble("Hello! I'm your AlgoLang assistant.\n\n" +
-                "I can explain your code, help you debug, or answer questions as you type.\n\n" +
-                "Use Ctrl+Space for auto-completion in the editor.", false);
+        if (chatMessagesBox == null)
+            return;
+        addChatBubble(
+                "Hello! I'm your AlgoLang assistant.\n\n" +
+                        "I can explain your code, help you debug, or answer questions as you type.\n\n" +
+                        "Tip: use Ctrl+Space for auto-completion in the editor.",
+                false);
     }
 
-    /**
-     * Creates a chat bubble Label and adds it to the messages VBox.
-     *
-     * @param text   the message text
-     * @param isUser true = user bubble (right-aligned), false = AI bubble
-     *               (left-aligned)
-     */
     private void addChatBubble(String text, boolean isUser) {
+        if (chatMessagesBox == null)
+            return;
         Label bubble = new Label(text);
         bubble.setWrapText(true);
         bubble.setMaxWidth(260);
@@ -354,12 +344,14 @@ public class MainController {
 
         HBox row = new HBox(bubble);
         row.setAlignment(isUser ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
-        HBox.setMargin(bubble, new Insets(0, 0, 0, isUser ? 16 : 0));
+        if (isUser)
+            HBox.setMargin(bubble, new Insets(0, 0, 0, 16));
 
         chatMessagesBox.getChildren().add(row);
-
-        // Auto-scroll to bottom
-        Platform.runLater(() -> chatScrollPane.setVvalue(1.0));
+        Platform.runLater(() -> {
+            if (chatScrollPane != null)
+                chatScrollPane.setVvalue(1.0);
+        });
     }
 
     private void setAiStatus(String status) {
@@ -367,9 +359,7 @@ public class MainController {
             aiStatusLabel.setText("AI: " + status);
     }
 
-    // ── Tab management
-    // ────────────────────────────────────────────────────────────
-
+    // Tab / file management
     private void createNewTab() {
         String title = "Untitled-" + untitledCounter++;
         EditorTab tab = new EditorTab(title);
@@ -386,6 +376,7 @@ public class MainController {
     }
 
     private void openFile(File file) {
+        // Switch to tab if already open
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof EditorTab et && file.equals(et.getFile())) {
                 tabPane.getSelectionModel().select(tab);
@@ -425,10 +416,9 @@ public class MainController {
     }
 
     private boolean closeTab(Tab tab) {
-        if (tab instanceof EditorTab et && et.isModified()) {
+        if (tab instanceof EditorTab et && et.isModified())
             if (!promptSaveChanges(et))
                 return false;
-        }
         tabPane.getTabs().remove(tab);
         refreshFileList();
         return true;
@@ -455,18 +445,17 @@ public class MainController {
         return true;
     }
 
-    /** Refresh the file explorer list to show all open tabs. */
+    /** Refresh the file explorer list with the names of all open tabs. */
     private void refreshFileList() {
         if (fileListView == null)
-            return; // guard: called before FXML injection completes
+            return; // guard against early / late FXML injection
         fileListView.getItems().clear();
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof EditorTab et) {
-                String label = et.getFile() != null ? et.getFile().getName() : et.getText();
-                fileListView.getItems().add(label);
+                String name = (et.getFile() != null) ? et.getFile().getName() : et.getText();
+                fileListView.getItems().add(name);
             }
         }
-        // Clicking a file in the list switches to that tab
         fileListView.setOnMouseClicked(event -> {
             int idx = fileListView.getSelectionModel().getSelectedIndex();
             if (idx >= 0 && idx < tabPane.getTabs().size()) {
@@ -478,9 +467,7 @@ public class MainController {
         });
     }
 
-    // ── Find / Replace
-    // ────────────────────────────────────────────────────────────
-
+    // Find / Replace
     private void showFindDialog(boolean showReplace) {
         EditorTab tab = getCurrentEditorTab();
         if (tab == null)
@@ -509,6 +496,7 @@ public class MainController {
         ButtonType replaceBT = new ButtonType("Replace", ButtonBar.ButtonData.OTHER);
         ButtonType replaceAllBT = new ButtonType("Replace All", ButtonBar.ButtonData.OTHER);
         ButtonType closeBT = new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
+
         if (showReplace)
             dialog.getDialogPane().getButtonTypes().addAll(findNextBT, replaceBT, replaceAllBT, closeBT);
         else
@@ -542,16 +530,14 @@ public class MainController {
             return;
         CodeArea ca = tab.getCodeArea();
         String text = ca.getText();
-        int start = ca.getCaretPosition();
-        int pos = text.indexOf(searchText, start);
+        int pos = text.indexOf(searchText, ca.getCaretPosition());
         if (pos == -1)
             pos = text.indexOf(searchText, 0);
         if (pos != -1) {
             ca.selectRange(pos, pos + searchText.length());
             ca.requestFocus();
-        } else {
+        } else
             showInfo("Find", "No matches found.");
-        }
     }
 
     private void replace(EditorTab tab, String searchText, String replaceText) {
@@ -577,53 +563,51 @@ public class MainController {
         showInfo("Replace All", "Replaced " + count + " occurrence(s).");
     }
 
-    // ── Status bar
-    // ────────────────────────────────────────────────────────────────
-
+    // Status bar
     private void updateStatus() {
         EditorTab tab = getCurrentEditorTab();
         if (tab == null) {
-            statusLabel.setText("Ready");
+            if (statusLabel != null)
+                statusLabel.setText("Ready");
             return;
         }
         CodeArea ca = tab.getCodeArea();
-        int caretPos = ca.getCaretPosition();
+        int pos = ca.getCaretPosition();
         String text = ca.getText();
-        int line = 1, column = 1;
-        for (int i = 0; i < caretPos && i < text.length(); i++) {
+        int line = 1, col = 1;
+        for (int i = 0; i < pos && i < text.length(); i++) {
             if (text.charAt(i) == '\n') {
                 line++;
-                column = 1;
+                col = 1;
             } else
-                column++;
+                col++;
         }
         int totalLines = text.isEmpty() ? 1 : text.split("\n", -1).length;
-        String status = String.format("Ln %d, Col %d   |   %d lines   |   %d chars",
-                line, column, totalLines, text.length());
+        String s = String.format("Ln %d, Col %d   |   %d lines   |   %d chars",
+                line, col, totalLines, text.length());
         if (tab.isModified())
-            status += "   |   ●  modified";
+            s += "   |   ●  modified";
         if (tab.getFile() != null)
-            status += "   |   " + tab.getFile().getAbsolutePath();
-        statusLabel.setText(status);
+            s += "   |   " + tab.getFile().getAbsolutePath();
+        if (statusLabel != null)
+            statusLabel.setText(s);
     }
 
-    // ── Utilities
-    // ─────────────────────────────────────────────────────────────────
-
+    // Utilities
     private EditorTab getCurrentEditorTab() {
         Tab sel = tabPane.getSelectionModel().getSelectedItem();
-        return sel instanceof EditorTab et ? et : null;
+        return (sel instanceof EditorTab et) ? et : null;
     }
 
     private Stage getStage() {
         return (Stage) tabPane.getScene().getWindow();
     }
 
-    private FileChooser fileChooser(String title) {
+    private FileChooser buildFileChooser(String title) {
         FileChooser fc = new FileChooser();
         fc.setTitle(title);
         fc.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Algo Files", "*.algo"),
+                new FileChooser.ExtensionFilter("AlgoLang Files", "*.algo"),
                 new FileChooser.ExtensionFilter("Text Files", "*.txt"),
                 new FileChooser.ExtensionFilter("All Files", "*.*"));
         return fc;

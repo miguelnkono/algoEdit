@@ -22,10 +22,16 @@ import javafx.stage.Popup;
 
 public class EditorTab extends Tab {
 
+    private static final String EDITOR_BG = "#0d1117";
+    private static final String GUTTER_BG = "#161b22";
+    private static final String GUTTER_BORDER = "#30363d";
+
     private final CodeArea codeArea;
     private File file;
     private boolean modified;
     private final String originalTitle;
+
+    // Auto-complete
     private Popup autoCompletePopup;
     private ListView<String> suggestionList;
 
@@ -34,28 +40,44 @@ public class EditorTab extends Tab {
         this.originalTitle = title;
         this.modified = false;
 
-        // code area
+        // CodeArea
         codeArea = new CodeArea();
+
+        // Force dark background inline — RichTextFX ignores the CSS cascade for
+        // its internal canvas nodes, so we must set both the inline style AND the
+        // CSS class. The CSS class handles text colour; the inline style handles bg.
         codeArea.setStyle(
-                "-fx-font-family: 'Iosevka Charon Mono', 'Cascadia Code', " +
-                        "'Consolas', 'Monaco', monospace; -fx-font-size: 17px;");
+                "-fx-background-color: " + EDITOR_BG + "; " +
+                        "-fx-font-family: 'Iosevka Charon Mono', 'JetBrains Mono', " +
+                        "'Cascadia Code', 'Consolas', 'Monaco', monospace; " +
+                        "-fx-font-size: 17px;");
+        codeArea.getStyleClass().add("code-area");
 
-        // line numbering
-        // RichTextFX calls the factory each time a paragraph is added/removed,
-        // so the lineIndex is always current — no listener needed.
+        // Line number gutter
+        // RichTextFX calls this factory fresh for every paragraph change, so
+        // lineIndex is always up-to-date — no listener is needed.
         codeArea.setParagraphGraphicFactory(lineIndex -> {
-            Label numLabel = new Label(String.valueOf(lineIndex + 1));
-            numLabel.getStyleClass().add("lineno");
-            numLabel.setMinWidth(42);
-            numLabel.setPrefWidth(42);
-            numLabel.setAlignment(Pos.CENTER_RIGHT);
-            numLabel.setPadding(new Insets(0, 10, 0, 6));
+            Label num = new Label(String.valueOf(lineIndex + 1));
+            num.getStyleClass().add("lineno");
+            // Also enforce inline so it applies even before stylesheet loads
+            num.setStyle(
+                    "-fx-text-fill: #404d5b; " +
+                            "-fx-font-size: 12px; " +
+                            "-fx-font-family: 'Iosevka Charon Mono', 'JetBrains Mono','Consolas',monospace; " +
+                            "-fx-alignment: center-right; " +
+                            "-fx-padding: 0 10 0 6; " +
+                            "-fx-min-width: 42; -fx-pref-width: 42;");
+            num.setMinWidth(42);
+            num.setPrefWidth(42);
+            num.setAlignment(Pos.CENTER_RIGHT);
+            num.setPadding(new Insets(0, 10, 0, 6));
 
-            HBox hbox = new HBox(numLabel);
+            HBox hbox = new HBox(num);
             hbox.setAlignment(Pos.CENTER_LEFT);
             hbox.setStyle(
-                    "-fx-background-color: #161b22;" +
-                            "-fx-border-color: transparent #30363d transparent transparent;" +
+                    "-fx-background-color: " + GUTTER_BG + "; " +
+                            "-fx-border-color: transparent " + GUTTER_BORDER +
+                            " transparent transparent; " +
                             "-fx-border-width: 0 1 0 0;");
             return hbox;
         });
@@ -63,29 +85,27 @@ public class EditorTab extends Tab {
         // Syntax highlighting (debounced 50 ms)
         codeArea.multiPlainChanges()
                 .successionEnds(Duration.ofMillis(50))
-                .subscribe(ignore -> codeArea.setStyleSpans(
-                        0, AlgoLangSyntaxHighlighter.computeHighlighting(codeArea.getText())));
+                .subscribe(ignore -> codeArea.setStyleSpans(0,
+                        AlgoLangSyntaxHighlighter.computeHighlighting(
+                                codeArea.getText())));
 
-        // Track modifications
+        // Track unsaved modifications
         codeArea.textProperty().addListener((obs, oldText, newText) -> {
-            if (!modified && oldText != null && !oldText.equals(newText)) {
+            if (!modified && oldText != null && !oldText.equals(newText))
                 setModified(true);
-            }
         });
 
         // Auto-completion
         setupAutoCompletion();
 
-        // Layout
+        // Wrap in a StackPane that also enforces the dark background
         StackPane container = new StackPane(codeArea);
-        container.setStyle("-fx-background-color: #0d1117;");
+        container.setStyle("-fx-background-color: " + EDITOR_BG + ";");
         setContent(container);
         setClosable(true);
     }
 
-    // ── Auto-completion
-    // ───────────────────────────────────────────────────────────
-
+    // Auto-completion
     private void setupAutoCompletion() {
         autoCompletePopup = new Popup();
         autoCompletePopup.setAutoHide(true);
@@ -94,60 +114,60 @@ public class EditorTab extends Tab {
         suggestionList.setPrefHeight(180);
         suggestionList.setPrefWidth(260);
         suggestionList.setStyle(
-                "-fx-background-color: #1c2330;" +
-                        "-fx-border-color: #30363d; -fx-border-width: 1;" +
-                        "-fx-font-family: 'Iosevka Charon Mono', 'JetBrains Mono','Consolas',monospace; -fx-font-size: 12px;");
+                "-fx-background-color: #1c2330; " +
+                        "-fx-border-color: #30363d; -fx-border-width: 1; " +
+                        "-fx-font-family: 'Iosevka Charon Mono', 'JetBrains Mono','Consolas',monospace; " +
+                        "-fx-font-size: 12px;");
 
-        suggestionList.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2)
+        suggestionList.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2)
                 insertSuggestion();
         });
-        suggestionList.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
+        suggestionList.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
                 insertSuggestion();
-                event.consume();
-            } else if (event.getCode() == KeyCode.ESCAPE) {
+                e.consume();
+            } else if (e.getCode() == KeyCode.ESCAPE) {
                 autoCompletePopup.hide();
                 codeArea.requestFocus();
-                event.consume();
+                e.consume();
             }
         });
 
         autoCompletePopup.getContent().add(suggestionList);
 
-        codeArea.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.SPACE && event.isControlDown()) {
+        codeArea.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.SPACE && e.isControlDown()) {
                 showAutoComplete();
-                event.consume();
-            } else if (event.getCode() == KeyCode.ESCAPE && autoCompletePopup.isShowing()) {
+                e.consume();
+            } else if (e.getCode() == KeyCode.ESCAPE && autoCompletePopup.isShowing()) {
                 autoCompletePopup.hide();
-                event.consume();
+                e.consume();
             }
         });
 
-        codeArea.textProperty().addListener((obs, oldText, newText) -> {
+        codeArea.textProperty().addListener((obs, o, n) -> {
             if (autoCompletePopup.isShowing()) {
-                String word = getCurrentWord();
-                if (word.length() < 2)
+                String w = getCurrentWord();
+                if (w.length() < 2)
                     autoCompletePopup.hide();
                 else
-                    updateAutoComplete(word);
+                    updateAutoComplete(w);
             }
         });
     }
 
     private void showAutoComplete() {
-        String word = getCurrentWord();
-        if (word.isEmpty()) {
+        String w = getCurrentWord();
+        if (w.isEmpty()) {
             autoCompletePopup.hide();
             return;
         }
-        updateAutoComplete(word);
+        updateAutoComplete(w);
     }
 
     private void updateAutoComplete(String currentWord) {
         List<String> suggestions = new ArrayList<>();
-
         for (String w : AlgoLangSyntaxHighlighter.getAllCompletions()) {
             if (w.toLowerCase().startsWith(currentWord.toLowerCase()))
                 suggestions.add(w);
@@ -157,7 +177,6 @@ public class EditorTab extends Tab {
             if (key.toLowerCase().startsWith(currentWord.toLowerCase()) && !suggestions.contains(key))
                 suggestions.add(key + "  [template]");
         }
-
         if (suggestions.isEmpty()) {
             autoCompletePopup.hide();
             return;
@@ -166,12 +185,9 @@ public class EditorTab extends Tab {
         suggestionList.getItems().setAll(suggestions);
         suggestionList.getSelectionModel().selectFirst();
 
-        Optional<Bounds> caretBounds = codeArea.getCaretBounds();
-        if (caretBounds.isPresent()) {
-            Bounds b = caretBounds.get();
-            if (!autoCompletePopup.isShowing())
-                autoCompletePopup.show(codeArea, b.getMaxX(), b.getMaxY());
-        }
+        Optional<Bounds> b = codeArea.getCaretBounds();
+        if (b.isPresent() && !autoCompletePopup.isShowing())
+            autoCompletePopup.show(codeArea, b.get().getMaxX(), b.get().getMaxY());
     }
 
     private void insertSuggestion() {
@@ -207,13 +223,10 @@ public class EditorTab extends Tab {
         int start = caretPos - 1;
         while (start >= 0 && Character.isLetterOrDigit(text.charAt(start)))
             start--;
-        start++;
-        return text.substring(start, caretPos);
+        return text.substring(start + 1, caretPos);
     }
 
-    // ── Public API
-    // ────────────────────────────────────────────────────────────────
-
+    // Public API
     public CodeArea getCodeArea() {
         return codeArea;
     }
@@ -222,22 +235,25 @@ public class EditorTab extends Tab {
         return codeArea.getText();
     }
 
-    public void setEditorContent(String text) {
-        codeArea.replaceText(text);
-        codeArea.setStyleSpans(0, AlgoLangSyntaxHighlighter.computeHighlighting(text));
+    public void setEditorContent(String content) {
+        codeArea.replaceText(content);
+        // Force an immediate syntax-highlight pass after loading file content
+        if (!content.isEmpty())
+            codeArea.setStyleSpans(0,
+                    AlgoLangSyntaxHighlighter.computeHighlighting(content));
     }
 
     public File getFile() {
         return file;
     }
 
+    public boolean isModified() {
+        return modified;
+    }
+
     public void setFile(File file) {
         this.file = file;
         updateTitle();
-    }
-
-    public boolean isModified() {
-        return modified;
     }
 
     public void setModified(boolean modified) {
@@ -246,9 +262,7 @@ public class EditorTab extends Tab {
     }
 
     private void updateTitle() {
-        String title = file != null ? file.getName() : originalTitle;
-        if (modified)
-            title = "● " + title; // dot instead of asterisk — more modern
-        setText(title);
+        String title = (file != null) ? file.getName() : originalTitle;
+        setText(modified ? "● " + title : title);
     }
 }
